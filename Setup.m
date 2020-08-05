@@ -37,7 +37,7 @@ configureTerminator(arduinoObj,"CR/LF");
 flush(arduinoObj);
 
 while 1
-    %% how to communicate with arduinno ?
+    
     buffer = arduinoObj.readline;
     
     switch buffer
@@ -55,8 +55,6 @@ while 1
     robot_h.Vertices = updatedPosition(:,1:3);
     drawnow()
     
-    %% read input
-    %% execute
     
 end
 
