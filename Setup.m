@@ -62,7 +62,8 @@ end
 %% Move Robot
 function  CMD_MOVE(distance)
 global robotPosition
-robotPosition = robotPosition * transl(distance,0,0);
+%robotPosition = robotPosition * transl(distance,0,0); %% using transl
+robotPosition = robotPosition * makehgtform('translate',distance,0,0); %% using makehgtform instead of transl
 end
 
 %% Rotate Robot
@@ -72,5 +73,6 @@ if direction == 1
     angle = -angle;
 end
 global robotPosition
-robotPosition = robotPosition * trotz(angle,'deg');
+%robotPosition = robotPosition * trotz(angle,'deg');
+robotPosition = robotPosition * makehgtform('zrotate',angle*pi/180); %% using makehgtform instead
 end
