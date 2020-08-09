@@ -3,7 +3,6 @@ scanAngle = pi/3; %% Input sensor scan angle
 scanDensity = 20; %% Amount of beam emited
 originalPose = [3; 4; 0]; %% Original robot position
 
-
 port = serialportlist("available") %% List the available Serial ports
 SerialPort = "COM4"; %% Change to the port connected to the Arduino
 BaudRate = 9600;   %% Communication baud rate
@@ -16,10 +15,18 @@ flush(arduinoObj);
 %% Innitialize the Environment
 viz = Visualizer2D;
 viz.showTrajectory = false;
-load exampleMap.mat
+%% Attemp to create map
+
+% load exampleMap.mat
+
+% Load map from .png pixel drawing (256x256 pixel)
+image = imread('frame1.png');
+grayimage = rgb2gray(image);
+bwimage = grayimage < 0.5;
+map = binaryOccupancyMap(bwimage,10)
+
+
 viz.mapName = 'map';
-
-
 pose = [3; 4; 0];
 viz(pose)
 release(viz); 
