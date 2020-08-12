@@ -52,22 +52,22 @@ int lcd_key = read_LCD_buttons();  // read the buttons
  {
    case btnRIGHT:
      {
-     PrintMessage("CMD_ACT_ROT_1_5"); // R
+     PrintMessage("CMD_ACT_ROT_1_10"); // R
      break;
      }
    case btnLEFT:
      {
-     PrintMessage("CMD_ACT_ROT_0_5");// L
+     PrintMessage("CMD_ACT_ROT_0_10");// L
      break;
      }
    case btnUP:
      {
-     PrintMessage("CMD_ACT_LAT_1_0.1");// U
+     PrintMessage("CMD_ACT_LAT_1_2");// U
      break;
      }
    case btnDOWN:
      {
-     PrintMessage("CMD_SEN_GYRO");// D positive is ccw
+     PrintMessage("CMD_ACT_LAT_0_1.9");// D positive is ccw
      break;
      }
    case btnSELECT:
@@ -75,10 +75,10 @@ int lcd_key = read_LCD_buttons();  // read the buttons
      PrintMessage("CLOSE");// SLCT
      break;
      }
-     case btnNONE:
-     {
-     PrintMessage("CMD_SEN_IR");
-     break;
-     }
+//     case btnNONE:
+//     {
+//     PrintMessage("NONE");
+//     break;
+//     }
  }
 }

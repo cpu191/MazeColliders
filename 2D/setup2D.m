@@ -43,79 +43,92 @@ attachLidarSensor(viz,lidar);
 while 1
     
     buffer = arduinoObj.readline;
-    switch buffer
-        case "CLOSE"
-            arduinoObj = [];
-            break
-        otherwise
-            cmd = strsplit(buffer,'_'); % Splitting command into sectors
-            switch cmd(2)
-                case "ACT"          % Actuate Command
-                    switch cmd(3)
-                        case "LAT"                           % CMD_ACT_LAT_*Direction*_*DistanceValue* - Forward and backwards movement, Direction 1= forward, 0 =backward (m/s)
-                            direction = str2double(cmd(4));
-                            distance = str2double(cmd(5));
-                            [viz,pose,odometer,lidar,velocity_h,velocity]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map);
-                        case "ROT"                           % CMD_ACT_ROT_*Direction*_*Angle* - CW and CCW rotation,  Direction 1= CW, 0=CCW, Angle= rotation angle value
-                            direction = str2double(cmd(4));
-                            angle = str2double(cmd(5))*pi/180;
-                            switch direction
-                                case 1
-                                    pose = pose - [0; 0; angle];
-                                    ranges = lidar(pose);
-                                    viz(pose,ranges);
-                                    pause(0.01)
-                                case 0
-                                    pose = pose + [0; 0; angle];
-                                    ranges = lidar(pose);
-                                    viz(pose,ranges)
-                                    pause(0.01)
-                                otherwise
-                                    disp('WRONG DIRECTION INPUT')
+    if ~isempty(buffer)
+        switch buffer
+            case "CLOSE"
+                arduinoObj = [];
+                break
+            otherwise
+                cmd = strsplit(buffer,'_'); % Splitting command into sectors
+                if cmd(1) == 'CMD'
+                    switch cmd(2)
+                        case "ACT"          % Actuate Command
+                            switch cmd(3)
+                                case "LAT"                           % CMD_ACT_LAT_*Direction*_*DistanceValue* - Forward and backwards movement, Direction 1= forward, 0 =backward (m/s)
+                                    direction = str2double(cmd(4));
+                                    distance = str2double(cmd(5));
+                                    [viz,pose,odometer,lidar,velocity_h,velocity]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map);
+                                case "ROT"                           % CMD_ACT_ROT_*Direction*_*Angle* - CW and CCW rotation,  Direction 1= CW, 0=CCW, Angle= rotation angle value
+                                    direction = str2double(cmd(4));
+                                    angle = str2double(cmd(5))*pi/180;
+                                    switch direction
+                                        case 1
+                                            pose = pose - [0; 0; angle];
+                                            ranges = lidar(pose);
+                                            viz(pose,ranges);
+                                            pause(0.01)
+                                        case 0
+                                            pose = pose + [0; 0; angle];
+                                            ranges = lidar(pose);
+                                            viz(pose,ranges)
+                                            pause(0.01)
+                                        otherwise
+                                            disp('WRONG DIRECTION INPUT')
+                                    end
+                                    if pose(3) >= 2*pi
+                                        pose(3) = pose(3) - 2*pi;
+                                    end
+                                    if pose(3) < 0
+                                        pose(3) = pose(3) + 2*pi;
+                                    end
+                                    
+                                case "SPEED"                         % CMD_ACT_SPEED_*SpeedVal* - Set speed for robot, speedval=integer for speed (m/s)
+                                    %velocity  = cmd(4);
+                                    
                             end
-                            if pose(3) >= 2*pi
-                                pose(3) = pose(3) - 2*pi;
-                            end
-                            if pose(3) < 0
-                                pose(3) = pose(3) + 2*pi;
+                        case "SEN"          % Sensor Command
+                            switch cmd(3)
+                                case "US"                            % CMD_SEN_US - Function returns distance readings of the ultrasound sensor
+                                    SensorUS = ranges
+                                case "IR"                            % CMD_SEN_IR - Function returns readings of the laser sensor
+                                    if ~isempty(ranges)
+                                        IRreading = ranges
+                                    end
+                                case "ROT"                           % CMD_SEN_ROT_*Angle* - This will move the sensor to the specific position 0 is forward, 90 is right, 180 is back, 270 is left
+                                    while cmd(4)> 360
+                                        cmd(4) = cmd(4)- 360;
+                                    end
+                                    while cmd(4)<0
+                                        cmd(4) = cmd(4) + 360;
+                                    end
+                                    
+                                    newSensorAngle = str2double(cmd(4))*pi/180; %% Sensor scan angle in radian
+                                    if newSensorAngle > sensorAngle && (newSensorAngle-sensorAngle) < pi
+                                        for i=0 : 1 : newSensorAngle
+                                            release(viz)
+                                            lidar.scanAngles = linspace(sensorAngle-pi/180,sensorAngle+pi/180,scanDensity);
+                                            attachLidarSensor(viz,lidar);
+                                            ranges = lidar(pose);
+                                            viz(pose,ranges);
+                                        end
+                                    else
+                                        %??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+                                    end
+                                    
+                                    
+                                case "CHECK"            % CMD_SEN_CHECK - This will return the current rotation on the sensor rotation 0-360
+                                    sensorAngle;
+                                case "VEL"              % CMD_SEN_VEL - Return current Velocity of the robot
+                                    velocity;
+                                case "GYRO"             % CMD_SEN_GYRO - Return current orientation of the robot
+                                    Robot_Orientation = pose(3)*180/pi
+                                case "DIST"             % CMD_SEN_DIST - Return current orientation of the robot
+                                    Odometer = odometer
                             end
                             
-                        case "SPEED"                         % CMD_ACT_SPEED_*SpeedVal* - Set speed for robot, speedval=integer for speed (m/s)
-                            %velocity  = cmd(4);
-                            
                     end
-                case "SEN"          % Sensor Command
-                    switch cmd(3)
-                        case "US"                            % CMD_SEN_US - Function returns distance readings of the ultrasound sensor
-                            SensorUS = ranges
-                        case "IR"                            % CMD_SEN_IR - Function returns readings of the laser sensor
-                            if ~isempty(ranges)
-                                IRreading = ranges
-                            end
-                        case "ROT"                           % CMD_SEN_ROT_*Angle* - This will move the sensor to the specific position 0 is forward, 90 is right, 180 is back, 270 is left
-                            sensorAngle = str2double(cmd(4))*pi/180 %% Sensor scan angle in radian
-                            release(viz)
-                            lidar.scanAngles = linspace(sensorAngle-pi/180,sensorAngle+pi/180,scanDensity);
-                            attachLidarSensor(viz,lidar);
-                            ranges = lidar(pose);
-                            viz(pose,ranges);
-                            if sensorAngle >= 2*pi
-                                sensorAngle = sensorAngle - 2*pi;
-                            end
-                            if sensorAngle <= 2*pi
-                                sensorAngle = sensorAngle + 2*pi;
-                            end
-                        case "CHECK"            % CMD_SEN_CHECK - This will return the current rotation on the sensor rotation 0-360
-                            sensorAngle;
-                        case "VEL"              % CMD_SEN_VEL - Return current Velocity of the robot
-                            velocity;
-                        case "GYRO"             % CMD_SEN_GYRO - Return current orientation of the robot
-                            Robot_Orientation = pose(3)*180/pi
-                        case "DIST"             % CMD_SEN_DIST - Return current orientation of the robot
-                            Odometer = odometer
-                    end
-                    
-            end
+                end
+        end
     end
 end
 
@@ -136,7 +149,7 @@ switch direction
                 end
                 ranges = lidar(pose);
                 viz(pose,ranges)
-                pause(0.02)
+                pause(0.01)
             end
         else
             for i = 0:distance/50: distance
