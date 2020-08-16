@@ -4,7 +4,7 @@ addpath(genpath([path,'\Toolboxes\']))
 % run startMobileRoboticsSimulationToolbox.m
 sensorAngle = 0*pi/180; %% Sensor scan angle in radian
 scanDensity = 1; %% Amount of beam emited
-sensorRange = 5; %% Max range of sensor
+sensorRange = 10; %% Max range of sensor
 originalPose = [3; 4; 0]; %% Original robot position
 port = serialportlist("available") %% List the available Serial ports
 SerialPort = "COM4"; %% Change to the port connected to the Arduino
@@ -24,21 +24,21 @@ viz.showTrajectory = false;
 %% Attemp to create map
 
 % Load map from .png pixel drawing (256x256 pixel)
-image = imread('map1.png');
+image = imread('map3.png');
 grayimage = rgb2gray(image);
 bwimage = grayimage < 0.5;
-map = binaryOccupancyMap(bwimage,10);
+map = binaryOccupancyMap(bwimage,2);
 
 
 viz.mapName = 'map';
 pose = [3; 4; 0];
-viz(pose)
-release(viz);
 lidar = LidarSensor;
 lidar.scanAngles = linspace(sensorAngle-pi/180,sensorAngle+pi/180,scanDensity);
-ranges=NaN;
 lidar.maxRange = sensorRange;
+release(viz);
 attachLidarSensor(viz,lidar);
+ranges = lidar(pose);
+viz(pose,ranges)
 
 while 1
     
@@ -47,6 +47,7 @@ while 1
         switch buffer
             case "CLOSE"
                 arduinoObj = [];
+                clear
                 break
             otherwise
                 cmd = strsplit(buffer,'_'); % Splitting command into sectors
@@ -89,41 +90,93 @@ while 1
                         case "SEN"          % Sensor Command
                             switch cmd(3)
                                 case "US"                            % CMD_SEN_US - Function returns distance readings of the ultrasound sensor
-                                    SensorUS = ranges
+                                        serialWrite(arduinoObj,ranges);
                                 case "IR"                            % CMD_SEN_IR - Function returns readings of the laser sensor
-                                    if ~isempty(ranges)
-                                        IRreading = ranges
-                                    end
+                                        serialWrite(arduinoObj,ranges);
                                 case "ROT"                           % CMD_SEN_ROT_*Angle* - This will move the sensor to the specific position 0 is forward, 90 is right, 180 is back, 270 is left
-                                    while cmd(4)> 360
-                                        cmd(4) = cmd(4)- 360;
+                                    angle = str2double(cmd(4))
+                                    while angle >= 360
+                                        angle = angle - 360;
                                     end
-                                    while cmd(4)<0
-                                        cmd(4) = cmd(4) + 360;
+                                    while angle <0
+                                        angle = angle + 360;
                                     end
-                                    
-                                    newSensorAngle = str2double(cmd(4))*pi/180; %% Sensor scan angle in radian
-                                    if newSensorAngle > sensorAngle && (newSensorAngle-sensorAngle) < pi
-                                        for i=0 : 1 : newSensorAngle
-                                            release(viz)
-                                            lidar.scanAngles = linspace(sensorAngle-pi/180,sensorAngle+pi/180,scanDensity);
-                                            attachLidarSensor(viz,lidar);
-                                            ranges = lidar(pose);
-                                            viz(pose,ranges);
-                                        end
-                                    else
-                                        %??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
-                                    end
+                                    release(viz)
+                                    lidar.scanAngles = linspace((angle-1)*pi/180,(angle+1)*pi/180,scanDensity);
+                                    sensorAngle = angle
+                                    attachLidarSensor(viz,lidar);
+                                    ranges = lidar(pose);
+                                    viz(pose,ranges);
+                                    %                                     newSensorAngle = angle * pi/180; %% Sensor scan angle in radian
+                                    %
+                                    %                                     if  sensorAngle < newSensorAngle
+                                    %                                         if (newSensorAngle-sensorAngle) < pi
+                                    %                                             for i = sensorAngle : (newSensorAngle-sensorAngle)/10: newSensorAngle
+                                    %                                                 release(viz)
+                                    %                                                 lidar.scanAngles = linspace(i-pi/180,i+pi/180,scanDensity);
+                                    %                                                 attachLidarSensor(viz,lidar);
+                                    %                                                 ranges = lidar(pose);
+                                    %                                                 viz(pose,ranges);
+                                    %                                                 pause(0.005)
+                                    %                                             end
+                                    %                                             sensorAngle = newSensorAngle;
+                                    %                                         else
+                                    %                                             if(newSensorAngle-sensorAngle) > pi %%% !new = 271 old = 3
+                                    %                                                 while sensorAngle ~= newSensorAngle
+                                    %                                                     if sensorAngle <= 0
+                                    %                                                         sensorAngle = sensorAngle + 2*pi
+                                    %                                                     end
+                                    %                                                     sensorAngle = sensorAngle - (sensorAngle + 2*pi -newSensorAngle)/10
+                                    %                                                     release(viz)
+                                    %                                                     lidar.scanAngles = linspace(sensorAngle-pi/180,sensorAngle+pi/180,scanDensity);
+                                    %                                                     attachLidarSensor(viz,lidar);
+                                    %                                                     ranges = lidar(pose);
+                                    %                                                     viz(pose,ranges);
+                                    %                                                     pause(0.1)
+                                    %                                                 end
+                                    %                                             end
+                                    %                                         end
+                                    %                                     else
+                                    %                                         if newSensorAngle < sensorAngle
+                                    %                                             if (sensorAngle - newSensorAngle) < pi
+                                    %                                                 while sensorAngle ~= newSensorAngle
+                                    %                                                     sensorAngle = sensorAngle - (sensorAngle - newSensorAngle)/10;
+                                    %                                                     release(viz)
+                                    %                                                     lidar.scanAngles = linspace(sensorAngle-pi/180,sensorAngle+pi/180,scanDensity);
+                                    %                                                     attachLidarSensor(viz,lidar);
+                                    %                                                     ranges = lidar(pose);
+                                    %                                                     viz(pose,ranges);
+                                    %                                                     pause(0.005)
+                                    %                                                 end
+                                    %                                             else
+                                    %                                                 if (sensorAngle - newSensorAngle) > pi % ! old 271 new 90
+                                    %                                                     while sensorAngle ~= newSensorAngle
+                                    %                                                         if sensorAngle >= pi
+                                    %                                                             sensorAngle = sensorAngle - 2*pi;
+                                    %                                                         end
+                                    %                                                         sensorAngle = sensorAngle + (newSensorAngle + 2*pi-sensorAngle)/10;
+                                    %                                                         release(viz)
+                                    %                                                         lidar.scanAngles = linspace(sensorAngle-pi/180,sensorAngle+pi/180,scanDensity);
+                                    %                                                         attachLidarSensor(viz,lidar);
+                                    %                                                         ranges = lidar(pose);
+                                    %                                                         viz(pose,ranges);
+                                    %                                                         pause(0.005)
+                                    %                                                     end
+                                    %                                                 end
+                                    %                                             end
+                                    %                                             %??????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????
+                                    %                                         end
                                     
                                     
                                 case "CHECK"            % CMD_SEN_CHECK - This will return the current rotation on the sensor rotation 0-360
-                                    sensorAngle;
+                                   serialWrite(arduinoObj,sensorAngle);
                                 case "VEL"              % CMD_SEN_VEL - Return current Velocity of the robot
-                                    velocity;
+                                    serialWrite(arduinoObj,velocity);
                                 case "GYRO"             % CMD_SEN_GYRO - Return current orientation of the robot
-                                    Robot_Orientation = pose(3)*180/pi
+                                    Robot_Orientation = pose(3)*180/pi;
+                                    serialWrite(arduinoObj,Robot_Orientation);
                                 case "DIST"             % CMD_SEN_DIST - Return current orientation of the robot
-                                    Odometer = odometer
+                                    serialWrite(arduinoObj,odometer);
                             end
                             
                     end
@@ -131,7 +184,15 @@ while 1
         end
     end
 end
+function serialWrite(arduinoObj,data)
 
+if ~isempty(data)   
+str = num2str(data);
+write(arduinoObj,str,"String");
+returnFromArduino = arduinoObj.readline
+actualRange = data
+end
+end
 function [viz,pose,odometer,lidar,velocity_h,velocity]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map)
 try delete(velocity_h);end
 switch direction
@@ -211,3 +272,4 @@ switch direction
 end
 odometer = odometer + sqrt(distance*cos(pose(3))*distance*cos(pose(3))+distance*sin(pose(3))*distance*sin(pose(3)));
 end
+
