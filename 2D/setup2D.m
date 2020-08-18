@@ -30,8 +30,6 @@ viz.showTrajectory = false;
 grayimage = rgb2gray(image);
 bwimage = grayimage < 0.5;
 map = binaryOccupancyMap(bwimage,1);
-
-
 viz.mapName = 'map';
 pose = [3; 4; 0];
 lidar = LidarSensor;
@@ -95,7 +93,7 @@ while 1
                                 case "IR"                            % CMD_SEN_IR - Function returns readings of the laser sensor
                                     serialWrite(arduinoObj,ranges);
                                 case "ROT"                           % CMD_SEN_ROT_*Angle* - This will move the sensor to the specific position 0 is forward, 90 is right, 180 is back, 270 is left
-                                    angle = str2double(cmd(4))
+                                    angle = str2double(cmd(4));
                                     while angle >= 360
                                         angle = angle - 360;
                                     end
@@ -104,7 +102,7 @@ while 1
                                     end
                                     release(viz)
                                     lidar.scanAngles = linspace((angle-1)*pi/180,(angle+1)*pi/180,scanDensity);
-                                    sensorAngle = angle
+                                    sensorAngle = angle;
                                     attachLidarSensor(viz,lidar);
                                     ranges = lidar(pose);
                                     viz(pose,ranges);
@@ -127,7 +125,7 @@ end
 function serialWrite(arduinoObj,data)
 if ~isempty(data)
     str = num2str(data);
-    writeline(arduinoObj,str)
+    writeline(arduinoObj,str);
 %     disp("String")
 %     returnFromArduino = arduinoObj.readline
 %     actualRange = data
@@ -145,7 +143,7 @@ switch direction
             for i = 0:distance/25: distance
                 nextPose = pose + [distance/25*cos(pose(3));distance/25*sin(pose(3));0];
                 if getOccupancy(map,[nextPose(1) nextPose(2)]) == 1
-                    %                     disp('Wall Stop')
+                    %disp('Wall Stop')
                     ranges = lidar(pose);
                     viz(pose,ranges)
                     return
@@ -160,7 +158,7 @@ switch direction
             for i = 0:distance/50: distance
                 nextPose = pose + [distance/50*cos(pose(3));distance/50*sin(pose(3));0];
                 if getOccupancy(map,[nextPose(1) nextPose(2)]) == 1
-                    %                     disp('Wall Stop')
+                    %disp('Wall Stop')
                     ranges = lidar(pose);
                     viz(pose,ranges)
                     return
@@ -183,7 +181,7 @@ switch direction
             for i = 0:distance/25: distance
                 nextPose = pose - [distance/25*cos(pose(3));distance/25*sin(pose(3));0];
                 if getOccupancy(map,[nextPose(1) nextPose(2)]) == 1
-                    %                     disp('Wall Stop')
+                    %disp('Wall Stop')
                     ranges = lidar(pose);
                     viz(pose,ranges)
                     return
@@ -199,7 +197,7 @@ switch direction
             for i = 0:distance/50: distance
                 nextPose = pose - [distance/50*cos(pose(3));distance/50*sin(pose(3));0];
                 if getOccupancy(map,[nextPose(1) nextPose(2)]) == 1
-                    %                     disp('Wall Stop')
+                    %disp('Wall Stop')
                     ranges = lidar(pose);
                     viz(pose,ranges)
                     return
