@@ -4,7 +4,7 @@ addpath(genpath([path,'\Toolboxes\']));
 addpath(genpath([path,'\map\']));
 
 %% Change these values to suit your setup
-run startMobileRoboticsSimulationToolbox.m %% Comment out after first run
+run startMobileRoboticsSimulationToolbox.m %% Comment out after first run to stop jumping to GettingStarted.mlx
 port = serialportlist("available") %% List the available Serial ports
 SerialPort = "COM4"; %% Change to the port connected to the Arduino
 BaudRate = 9600;   %% Communication baud rate
@@ -26,7 +26,7 @@ arduinoObj.Timeout = 60; % Serial connection not reveive data within 60 second w
 
 %% Innitialize the Environment
 viz = Visualizer2D;
-viz.showTrajectory = false;
+viz.showTrajectory = true;          %% Show the robot Trajectory
 %% Create map
 grayimage = rgb2gray(mapLoad);
 bwimage = grayimage < 0.5;

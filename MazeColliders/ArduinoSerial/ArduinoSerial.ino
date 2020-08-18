@@ -60,24 +60,26 @@ void loop() {
   {
     case btnRIGHT:
       {
-        PrintMessage("CMD_ACT_ROT_1_10"); // R
+        PrintMessage("CMD_ACT_ROT_1_10");
         break;
       }
     case btnLEFT:
       {
-        PrintMessage("CMD_ACT_ROT_0_10");// L
+        PrintMessage("CMD_ACT_ROT_0_10");
         break;
       }
     case btnUP:
       {
-        PrintMessage("CMD_ACT_LAT_1_1");// U
+        PrintMessage("CMD_ACT_LAT_1_1");
         break;
       }
     case btnDOWN:
       {
-        PrintMessage("CMD_SEN_US");// D positive is ccw
+        PrintMessage("CMD_SEN_US");
+        
         String incomingByte = Serial.readString();
         Serial.println(incomingByte);
+        
         break;
       }
     case btnSELECT:
