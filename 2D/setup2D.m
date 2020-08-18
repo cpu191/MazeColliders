@@ -2,15 +2,18 @@ clear all
 path = pwd;
 addpath(genpath([path,'\Toolboxes\']));
 addpath(genpath([path,'\map\']));
+%% Change these value to suit your setup
 run startMobileRoboticsSimulationToolbox.m %% Comment out after first run
 image = imread('box.png'); % Load map from .png pixel drawing (200x200 pixel)
-sensorAngle = 0*pi/180; %% Sensor scan angle in radian
-scanDensity = 1; %% Amount of beam emited
-sensorRange = 10; %% Max range of sensor
-originalPose = [3; 4; 0]; %% Original robot position
 port = serialportlist("available") %% List the available Serial ports
 SerialPort = "COM4"; %% Change to the port connected to the Arduino
 BaudRate = 9600;   %% Communication baud rate
+
+%% Do not Modify
+sensorAngle = 0*pi/180; %% Sensor scan angle in radian
+scanDensity = 1; %% Amount of beam emited
+sensorRange = 5; %% Max range of sensor
+originalPose = [3; 4; 0]; %% Original robot position
 odometer = 0; %% Distance travelled
 velocity = 0;
 velocity_h=NaN;
