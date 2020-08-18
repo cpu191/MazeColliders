@@ -2,7 +2,8 @@ clear all
 path = pwd;
 addpath(genpath([path,'\Toolboxes\']));
 addpath(genpath([path,'\map\']));
-% run startMobileRoboticsSimulationToolbox.m
+run startMobileRoboticsSimulationToolbox.m %% Comment out after first run
+image = imread('box.png'); % Load map from .png pixel drawing (200x200 pixel)
 sensorAngle = 0*pi/180; %% Sensor scan angle in radian
 scanDensity = 1; %% Amount of beam emited
 sensorRange = 10; %% Max range of sensor
@@ -22,13 +23,10 @@ arduinoObj.Timeout = 60; % Serial connection not reveive data within 60 second w
 %% Innitialize the Environment
 viz = Visualizer2D;
 viz.showTrajectory = false;
-%% Attemp to create map
-
-% Load map from .png pixel drawing (256x256 pixel)
-image = imread('box.png');
+%% Create map
 grayimage = rgb2gray(image);
 bwimage = grayimage < 0.5;
-map = binaryOccupancyMap(bwimage,10);
+map = binaryOccupancyMap(bwimage,1);
 
 
 viz.mapName = 'map';
@@ -85,8 +83,6 @@ while 1
                                     end
                                     ranges = lidar(pose);
                                     viz(pose,ranges)
-                                case "SPEED"                         % CMD_ACT_SPEED_*SpeedVal* - Set speed for robot, speedval=integer for speed (m/s)
-                                    %velocity  = cmd(4);
                                     
                             end
                         case "SEN"          % Sensor Command
@@ -128,7 +124,6 @@ end
 function serialWrite(arduinoObj,data)
 if ~isempty(data)
     str = num2str(data);
-    %write(arduinoObj,str,"String");
     writeline(arduinoObj,str)
 %     disp("String")
 %     returnFromArduino = arduinoObj.readline
@@ -137,9 +132,11 @@ end
 end
 function [viz,pose,ranges,odometer,lidar,velocity_h,velocity]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map)
 try delete(velocity_h);end
+vx=16;
+vy=20.5;
 switch direction
     case 1
-        velocity_h = text(17,27,sprintf('Velocity(m/s)=%f',1.5),'FontSize',7);
+        velocity_h = text(vx,vy,sprintf('Velocity(m/s)=%f',1.5),'FontSize',7);
         velocity = 1.5;
         if distance < 2
             for i = 0:distance/25: distance
@@ -174,10 +171,10 @@ switch direction
             end
         end
         delete(velocity_h);
-        velocity_h = text(17,27,sprintf('Velocity(m/s)=%f',0),'FontSize',7);
+        velocity_h = text(vx,vy,sprintf('Velocity(m/s)=%f',0),'FontSize',7);
         velocity=0;
     case 0
-        velocity_h = text(17,27,sprintf('Velocity(m/s)=%f',-1.5),'FontSize',7);
+        velocity_h = text(vx,vy,sprintf('Velocity(m/s)=%f',-1.5),'FontSize',7);
         velocity = -1.5;
         if distance < 2
             for i = 0:distance/25: distance
@@ -209,13 +206,13 @@ switch direction
                 ranges = lidar(pose);
                 velocity = -1.5;
                 viz(pose,ranges)
-                velocity_h = text(17,27,sprintf('Velocity=%f',velocity,'m/s'),'FontSize',7);
+                velocity_h = text(vx,vy,sprintf('Velocity=%f',velocity,'m/s'),'FontSize',7);
                 
                 pause(0.01)
             end
         end
         delete(velocity_h);
-        velocity_h = text(17,27,sprintf('Velocity(m/s)=%f',0),'FontSize',7);
+        velocity_h = text(vx,vy,sprintf('Velocity(m/s)=%f',0),'FontSize',7);
         velocity=0;
     otherwise
         disp('WRONG DIRECTION INPUT')
