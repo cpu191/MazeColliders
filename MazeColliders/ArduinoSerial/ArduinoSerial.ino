@@ -75,7 +75,7 @@ void loop() {
       }
     case btnDOWN:
       {
-        PrintMessage("CMD_SEN_US");
+        PrintMessage("CMD_SEN_GOAL");
         
         String incomingByte = Serial.readString();
         Serial.println(incomingByte);
@@ -89,7 +89,9 @@ void loop() {
       }
     case btnNONE:
       {
-        //PrintMessage("CMD_SEN_CHECK");
+        //PrintMessage("CMD_SEN_PING");
+       // String incomingByte = Serial.readString();
+        //Serial.println(incomingByte);
         break;
       }
 

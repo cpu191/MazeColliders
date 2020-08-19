@@ -4,11 +4,11 @@ addpath(genpath([path,'\Toolboxes\']));
 addpath(genpath([path,'\map\']));
 
 %% Change these values to suit your setup
-run startMobileRoboticsSimulationToolbox.m %% Comment out after first run to stop jumping to GettingStarted.mlx
+%run startMobileRoboticsSimulationToolbox.m %% Comment out after first run to stop jumping to GettingStarted.mlx
 port = serialportlist("available") %% List the available Serial ports
 SerialPort = "COM4"; %% Change to the port connected to the Arduino
 BaudRate = 9600;   %% Communication baud rate
-mapLoad = imread('box.png'); % Load map from .png pixel drawing (200x200 pixel)
+mapLoad = imread('map9.png'); % Load map from .png pixel drawing (200x200 pixel)
 
 %% Do not Modify
 sensorAngle = 0*pi/180; %% Sensor scan angle in radian
@@ -18,6 +18,7 @@ originalPose = [3; 4; 0]; %% Original robot position
 odometer = 0; %% Distance travelled
 velocity = 0;
 velocity_h=NaN;
+
 %% Innitialize Serial Communication
 arduinoObj = serialport(SerialPort,BaudRate);
 configureTerminator(arduinoObj,"CR/LF");
@@ -26,7 +27,8 @@ arduinoObj.Timeout = 60; % Serial connection not reveive data within 60 second w
 
 %% Innitialize the Environment
 viz = Visualizer2D;
-viz.showTrajectory = true;          %% Show the robot Trajectory
+viz.showTrajectory = false;          %% Show the robot Trajectory
+viz.hasWaypoints = false;
 %% Create map
 grayimage = rgb2gray(mapLoad);
 bwimage = grayimage < 0.5;
@@ -41,6 +43,34 @@ attachLidarSensor(viz,lidar);
 ranges = lidar(pose);
 viz(pose,ranges)
 
+%% GET A FREE POINT
+gSwitch = 0; % to check if robot achieved Goal,0 is default, 1 when the robot reached goal 1 and 2 when robot reach goal 2.
+resolution = 0.5;
+numFree = 0;
+for x =0 : resolution : 20
+    for  y=0 : resolution : 20
+        if getOccupancy(map,[x y]) == 0
+            numFree = numFree+1;
+            freeLoc(numFree).x = x;
+            freeLoc(numFree).y = y;
+        end
+    end
+end
+
+seed = randi([1,numFree],2,1);
+distance = sqrt( (freeLoc(seed(1)).x - freeLoc(seed(2)).x)^2 +  (freeLoc(seed(1)).y - freeLoc(seed(2)).y)^2);
+while  distance < 5 distance && distance > 20
+    seed = randi([1,numFree],2,1);
+    distance = sqrt( (freeLoc(seed(1)).x - freeLoc(seed(2)).x)^2 +  (freeLoc(seed(1)).y - freeLoc(seed(2)).y)^2);
+end
+g(1) = freeLoc(seed(1));
+g(2)= freeLoc(seed(2));
+hold on
+g1_h = plot(g(1).x,g(1).y,'Color','b','Marker','.','MarkerSize',30); %% <---Goal 1 coordinate here
+g2_h = plot(g(2).x,g(2).y,'Color','r','Marker','*','MarkerSize',10); %% <---Goal 2 coordinate here
+hold off
+
+%% Loop
 while 1
     
     buffer = arduinoObj.readline;
@@ -59,7 +89,7 @@ while 1
                                 case "LAT"                           % CMD_ACT_LAT_*Direction*_*DistanceValue* - Forward and backwards movement, Direction 1= forward, 0 =backward (m/s)
                                     direction = str2double(cmd(4));
                                     distance = str2double(cmd(5));
-                                    [viz,pose,ranges,odometer,lidar,velocity_h,velocity]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map);
+                                    [viz,pose,ranges,odometer,lidar,velocity_h,velocity,g,gSwitch]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map,g,gSwitch);
                                 case "ROT"                           % CMD_ACT_ROT_*Direction*_*Angle* - CW and CCW rotation,  Direction 1= CW, 0=CCW, Angle= rotation angle value
                                     direction = str2double(cmd(4));
                                     angle = str2double(cmd(5))*pi/180;
@@ -89,8 +119,6 @@ while 1
                             end
                         case "SEN"          % Sensor Command
                             switch cmd(3)
-                                case "US"                            % CMD_SEN_US - Function returns distance readings of the ultrasound sensor
-                                    serialWrite(arduinoObj,ranges);
                                 case "IR"                            % CMD_SEN_IR - Function returns readings of the laser sensor
                                     serialWrite(arduinoObj,ranges);
                                 case "ROT"                           % CMD_SEN_ROT_*Angle* - This will move the sensor to the specific position 0 is forward, 90 is right, 180 is back, 270 is left
@@ -116,6 +144,34 @@ while 1
                                     serialWrite(arduinoObj,Robot_Orientation);
                                 case "DIST"             % CMD_SEN_DIST - Return current orientation of the robot
                                     serialWrite(arduinoObj,odometer);
+                                case "PING"             % CMD_SEN_PING - Check if the goal point is nearby,return the distance to the goal if it within 5m range, return 0 if nothing in nearby
+                                    d1 =  sqrt( (g(1).x - pose(1))^2 +  ( g(1).y - pose(2))^2);
+                                    d2 =  sqrt( (g(2).x - pose(1))^2 +  ( g(2).y - pose(2))^2);
+                                    
+                                    if 0 < d1 && d1 <= 5
+                                        serialWrite(arduinoObj,d1);
+                                    else   
+                                        if 0 < d2 && d2 <= 5
+                                            serialWrite(arduinoObj,d2);
+                                        else
+                                            serialWrite(arduinoObj,0);
+                                        end
+                                    end
+                                    
+                                case "ID"         % CMD_SEN_ID - Identify the nearby goal within 0.5m, return 1 if near goal 1, return 2 if near goal 2, return 0 if no nearby goal
+                                    d1 =  sqrt( (g(1).x - pose(1))^2 +  ( g(1).y - pose(2))^2);
+                                    d2 =  sqrt( (g(2).x - pose(1))^2 +  ( g(2).y - pose(2))^2);
+                                    if 0 < d1 && d1 < 0.5
+                                        serialWrite(arduinoObj,1);
+                                        return
+                                    end
+                                    if 0 < d2 && d2 < 0.5
+                                        serialWrite(arduinoObj,2);
+                                        return
+                                    end
+                                    serialWrite(arduinoObj,0);
+                                case "GOAL"       % CMD_SEN_GOAL - Check the goal Switch, 0 is default, 1 when the robot reached goal 1 and 2 when robot reach goal 2.
+                                    serialWrite(arduinoObj,gSwitch);
                             end
                             
                     end
@@ -127,15 +183,16 @@ function serialWrite(arduinoObj,data)
 if ~isempty(data)
     str = num2str(data);
     writeline(arduinoObj,str);
-    %     disp("String")
-    %     returnFromArduino = arduinoObj.readline
+    %disp("Return from Arduino")
+    ReturnFromArduino = arduinoObj.readline
     %     actualRange = data
 end
 end
-function [viz,pose,ranges,odometer,lidar,velocity_h,velocity]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map)
+function [viz,pose,ranges,odometer,lidar,velocity_h,velocity,g,gSwitch]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map,g,gSwitch)
 try delete(velocity_h);end
 vx=16;
 vy=20.5;
+maxDistance = 0.2; %% Maximum distance to goal required for the robot to be consider achieved goal
 switch direction
     case 1
         velocity_h = text(vx,vy,sprintf('Velocity(m/s)=%f',1.5),'FontSize',7);
@@ -143,6 +200,7 @@ switch direction
         if distance < 2
             for i = 0:distance/25: distance
                 nextPose = pose + [distance/25*cos(pose(3));distance/25*sin(pose(3));0];
+                %% Check for wall
                 if getOccupancy(map,[nextPose(1) nextPose(2)]) == 1
                     %disp('Wall Stop')
                     ranges = lidar(pose);
@@ -150,6 +208,19 @@ switch direction
                     return
                 else
                     pose = nextPose;
+                end
+                %% Check for goal
+                switch gSwitch
+                    case 0
+                        d1 =  sqrt( (g(1).x - pose(1))^2 +  ( g(1).y - pose(2))^2);
+                        if d1 <= maxDistance
+                            gSwitch = 1;
+                        end 
+                    case 1
+                        d2 =  sqrt( (g(2).x - pose(1))^2 +  ( g(2).y - pose(2))^2);
+                        if d2 <= maxDistance
+                            gSwitch = 2;
+                        end 
                 end
                 ranges = lidar(pose);
                 viz(pose,ranges)
@@ -165,6 +236,19 @@ switch direction
                     return
                 else
                     pose = nextPose;
+                end
+                %% Check for goal
+                switch gSwitch
+                    case 0
+                        d1 =  sqrt( (g(1).x - pose(1))^2 +  ( g(1).y - pose(2))^2);
+                        if d1 <= maxDistance
+                            gSwitch = 1;
+                        end 
+                    case 1
+                        d2 =  sqrt( (g(2).x - pose(1))^2 +  ( g(2).y - pose(2))^2);
+                        if d2 <= maxDistance
+                            gSwitch = 2;
+                        end 
                 end
                 ranges = lidar(pose);
                 velocity = 1.5;
@@ -189,6 +273,19 @@ switch direction
                 else
                     pose = nextPose;
                 end
+                                %% Check for goal
+                switch gSwitch
+                    case 0
+                        d1 =  sqrt( (g(1).x - pose(1))^2 +  ( g(1).y - pose(2))^2);
+                        if d1 <= maxDistance
+                            gSwitch = 1;
+                        end 
+                    case 1
+                        d2 =  sqrt( (g(2).x - pose(1))^2 +  ( g(2).y - pose(2))^2);
+                        if d2 <= maxDistance
+                            gSwitch = 2;
+                        end 
+                end
                 ranges = lidar(pose);
                 velocity = -1.5;
                 viz(pose,ranges)
@@ -204,6 +301,19 @@ switch direction
                     return
                 else
                     pose = nextPose;
+                end
+                                %% Check for goal
+                switch gSwitch
+                    case 0
+                        d1 =  sqrt( (g(1).x - pose(1))^2 +  ( g(1).y - pose(2))^2);
+                        if d1 <= maxDistance
+                            gSwitch = 1;
+                        end 
+                    case 1
+                        d2 =  sqrt( (g(2).x - pose(1))^2 +  ( g(2).y - pose(2))^2);
+                        if d2 <= maxDistance
+                            gSwitch = 2;
+                        end 
                 end
                 ranges = lidar(pose);
                 velocity = -1.5;
