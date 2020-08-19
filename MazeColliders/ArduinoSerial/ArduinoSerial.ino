@@ -78,7 +78,8 @@ void loop() {
         PrintMessage("CMD_SEN_GOAL");
         
         String incomingByte = Serial.readString();
-        Serial.println(incomingByte);
+//        Serial.println(incomingByte);
+        lcd.print(incomingByte);
         
         break;
       }

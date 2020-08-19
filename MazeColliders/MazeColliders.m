@@ -47,9 +47,10 @@ viz(pose,ranges)
 gSwitch = 0; % to check if robot achieved Goal,0 is default, 1 when the robot reached goal 1 and 2 when robot reach goal 2.
 resolution = 0.5;
 numFree = 0;
+spacing = 0.2 % distance away from the wall which goal spawn
 for x =0 : resolution : 20
     for  y=0 : resolution : 20
-        if getOccupancy(map,[x y]) == 0
+        if getOccupancy(map,[x y]) == 0 && getOccupancy(map,[x-spacing y]) == 0 && getOccupancy(map,[x-spacing y-spacing]) == 0&& getOccupancy(map,[x-spacing y+spacing]) == 0&& getOccupancy(map,[x y-spacing]) == 0&& getOccupancy(map,[x y+spacing]) == 0&& getOccupancy(map,[x+spacing y]) == 0&& getOccupancy(map,[x+spacing y+spacing]) == 0&& getOccupancy(map,[x+spacing y-spacing]) == 0
             numFree = numFree+1;
             freeLoc(numFree).x = x;
             freeLoc(numFree).y = y;
