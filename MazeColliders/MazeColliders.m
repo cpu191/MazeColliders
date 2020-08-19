@@ -47,7 +47,7 @@ viz(pose,ranges)
 gSwitch = 0; % to check if robot achieved Goal,0 is default, 1 when the robot reached goal 1 and 2 when robot reach goal 2.
 resolution = 0.5;
 numFree = 0;
-spacing = 0.2 % distance away from the wall which goal spawn
+spacing = 0.2; % distance away from the wall which goal spawn
 for x =0 : resolution : 20
     for  y=0 : resolution : 20
         if getOccupancy(map,[x y]) == 0 && getOccupancy(map,[x-spacing y]) == 0 && getOccupancy(map,[x-spacing y-spacing]) == 0&& getOccupancy(map,[x-spacing y+spacing]) == 0&& getOccupancy(map,[x y-spacing]) == 0&& getOccupancy(map,[x y+spacing]) == 0&& getOccupancy(map,[x+spacing y]) == 0&& getOccupancy(map,[x+spacing y+spacing]) == 0&& getOccupancy(map,[x+spacing y-spacing]) == 0
@@ -71,15 +71,30 @@ g1_h = plot(g(1).x,g(1).y,'Color','b','Marker','.','MarkerSize',30); %% <---Goal
 g2_h = plot(g(2).x,g(2).y,'Color','r','Marker','*','MarkerSize',10); %% <---Goal 2 coordinate here
 hold off
 
+runFlag= false;
+while runFlag == false
+     disp("wait")
+    buffer_s = arduinoObj.readline;
+    if ~isempty(buffer_s)
+        if buffer_s == "CMD_START"
+        runFlag = true;
+        disp("Flagged")
+        end
+    end
+end
 %% Loop
-while 1
+while runFlag == true
     
     buffer = arduinoObj.readline;
     if ~isempty(buffer)
+        Status = DataLogger(buffer,'RX');
+        
         switch buffer
-            case "CLOSE"
+            case "CMD_CLOSE"
                 arduinoObj = [];
                 clear
+                disp("Closing")
+                runFlag = false;
                 break
             otherwise
                 cmd = strsplit(buffer,'_'); % Splitting command into sectors
@@ -185,8 +200,9 @@ if ~isempty(data)
     str = num2str(data);
     writeline(arduinoObj,str);
     %disp("Return from Arduino")
-    ReturnFromArduino = arduinoObj.readline
-    %     actualRange = data
+     Status = DataLogger(data,'TX');
+  %  ReturnFromArduino = arduinoObj.readline
+        actual = data
 end
 end
 function [viz,pose,ranges,odometer,lidar,velocity_h,velocity,g,gSwitch]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map,g,gSwitch)
@@ -332,4 +348,20 @@ switch direction
 end
 odometer = odometer + sqrt(distance*cos(pose(3))*distance*cos(pose(3))+distance*sin(pose(3))*distance*sin(pose(3)));
 end
-
+function [Status]=DataLogger(String,SendString)
+   persistent Logger;
+   if isempty(Logger)
+       Logger={'TimeStamp','Recieved','Transmitted'};
+   end
+   DataVector{1,1}=datestr(datetime);
+   if strcmp(SendString,'RX')
+       DataVector{1,2}=String;
+       DataVector{1,3}='';
+   elseif strcmp(SendString,'TX')
+       DataVector{1,2}='';
+       DataVector{1,3}=String;
+   end
+   Logger=vertcat(Logger,DataVector);
+   assignin('base','DataLog',Logger);
+   Status=1;
+end

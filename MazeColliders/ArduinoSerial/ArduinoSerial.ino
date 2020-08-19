@@ -45,6 +45,8 @@ void setup() {
   lcd.begin(16, 2);
   lcd.setCursor(0, 1);
   lcd.autoscroll();
+  delay(2000);
+  PrintMessage("CMD_START");
 }
 long unsigned int x = 0;
 void loop() {
@@ -53,9 +55,11 @@ void loop() {
   //  if (Serial.available() > 0) {
   //    // read the incoming byte:
 
-
+  
 
   int lcd_key = read_LCD_buttons();  // read the buttons
+
+  
   switch (lcd_key)               // depending on which button was pushed, we perform an action
   {
     case btnRIGHT:
@@ -75,17 +79,17 @@ void loop() {
       }
     case btnDOWN:
       {
-        PrintMessage("CMD_SEN_GOAL");
+        PrintMessage("CMD_SEN_PING");
         
         String incomingByte = Serial.readString();
 //        Serial.println(incomingByte);
-        lcd.print(incomingByte);
+        lcd.println(incomingByte);
         
         break;
       }
     case btnSELECT:
       {
-        PrintMessage("CLOSE");// SLCT
+        PrintMessage("CMD_CLOSE");// SLCT
         break;
       }
     case btnNONE:
