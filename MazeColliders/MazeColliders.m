@@ -2,14 +2,13 @@ clear all
 path = pwd;
 addpath(genpath([path,'\Toolboxes\']));
 addpath(genpath([path,'\map\']));
-
-%% Change these values to suit your setup
+ 
 %run startMobileRoboticsSimulationToolbox.m %% Comment out after first run to stop jumping to GettingStarted.mlx
 port = serialportlist("available") %% List the available Serial ports
 SerialPort = "COM4"; %% Change to the port connected to the Arduino
 BaudRate = 9600;   %% Communication baud rate
 task = "A3" ;       %% Task A3(box with no goal) or A4(random map with goals)
-randomGoal = false;  %% Spawn random goals on map ? 
+randomGoal = true;  %% Spawn random goals on map ? 
 %% Do not Modify
 switch task
     case "A3"
@@ -96,6 +95,8 @@ while runFlag == false
         end
     end
 end
+tic
+
 %% Loop
 while runFlag == true
     buffer = arduinoObj.readline;
@@ -105,9 +106,16 @@ while runFlag == true
         switch buffer
             case "CMD_CLOSE"
                 arduinoObj = [];
-                clear
                 runFlag = false;
+                toc
+                if randomGoal == true
+                disp("Goal Achieved :")
+                disp(gSwitch)
+                end
+                disp("Travelled Distance(metre):")
+                disp(odometer)
                 disp("-------SESSION END-------")
+                clear
                 break
             otherwise
                 cmd = strsplit(buffer,'_'); % Splitting command into sectors
