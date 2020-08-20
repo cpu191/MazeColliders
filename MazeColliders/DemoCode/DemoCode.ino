@@ -19,17 +19,19 @@ void setup() {
   Serial.begin(9600);
   lcd.begin(16, 2);
   lcd.setCursor(0, 1);
+  delay(2000);                // Wait 2 second 
+  PrintMessage("CMD_START");  // Start the robot
 }
 void loop() {
-
+  
   PrintMessage("CMD_ACT_LAT_1_2 ");  // Move Foward 2m
-  delay(100);
+  delay(500);
   PrintMessage("CMD_ACT_ROT_1_30 "); // Rotate Clockwise 30Deg
-  delay(100);
+  delay(500);
   PrintMessage("CMD_ACT_LAT_0_1 ");  // Move Backward 1m
-  delay(100);
+  delay(500);
   PrintMessage("CMD_SEN_ROT_180");    // Rotate the sensor to the 45Deg position
-  delay(100);
+  delay(500);
   PrintMessage("CMD_SEN_IR");        // Query the sensor reading
   String incomingByte = Serial.readString(); // Read the incoming value
   lcd.print(incomingByte);           // Print the incoming byte to the lcd shield
@@ -38,6 +40,6 @@ void loop() {
     PrintMessage("CMD_ACT_LAT_1_1");  // Move Foward 0.5m
     PrintMessage("CMD_ACT_ROT_0_20"); // Rotate Counter Clockwise 30Deg
   }
-  PrintMessage("CLOSE");             // Stop the program and clear the variable
-
+  PrintMessage("CMD_CLOSE");             // Stop the program and clear the variable
+  
 }

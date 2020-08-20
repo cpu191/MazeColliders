@@ -8,9 +8,17 @@ addpath(genpath([path,'\map\']));
 port = serialportlist("available") %% List the available Serial ports
 SerialPort = "COM4"; %% Change to the port connected to the Arduino
 BaudRate = 9600;   %% Communication baud rate
-mapLoad = imread('map9.png'); % Load map from .png pixel drawing (200x200 pixel)
-
+task = "A3" ;       %% Task A3(box with no goal) or A4(random map with goals)
+randomGoal = false;  %% Spawn random goals on map ? 
 %% Do not Modify
+switch task
+    case "A3"
+        mapLoad = imread('box.png');
+    case "A4"
+        mapID=randi([1 9],1,1); % Randomize map ID
+        f = dir('map\map*.png');
+        mapLoad = imread(f(mapID).name); % Load map from .png pixel drawing (200x200 pixel)
+end
 sensorAngle = 0*pi/180; %% Sensor scan angle in radian
 scanDensity = 1; %% Amount of beam emited
 sensorRange = 5; %% Max range of sensor
@@ -67,24 +75,29 @@ end
 g(1) = freeLoc(seed(1));
 g(2)= freeLoc(seed(2));
 hold on
+g1_h= NaN;
+g2_h=NaN;
+switch randomGoal
+    case true
 g1_h = plot(g(1).x,g(1).y,'Color','b','Marker','.','MarkerSize',30); %% <---Goal 1 coordinate here
 g2_h = plot(g(2).x,g(2).y,'Color','r','Marker','*','MarkerSize',10); %% <---Goal 2 coordinate here
-hold off
+    case false
+end
+
 
 runFlag= false;
 while runFlag == false
-     disp("wait")
+     disp("WAITING FOR START SIGNAL")
     buffer_s = arduinoObj.readline;
     if ~isempty(buffer_s)
         if buffer_s == "CMD_START"
         runFlag = true;
-        disp("Flagged")
+        disp("--------START--------")
         end
     end
 end
 %% Loop
 while runFlag == true
-    
     buffer = arduinoObj.readline;
     if ~isempty(buffer)
         Status = DataLogger(buffer,'RX');
@@ -93,8 +106,8 @@ while runFlag == true
             case "CMD_CLOSE"
                 arduinoObj = [];
                 clear
-                disp("Closing")
                 runFlag = false;
+                disp("-------SESSION END-------")
                 break
             otherwise
                 cmd = strsplit(buffer,'_'); % Splitting command into sectors
@@ -105,7 +118,7 @@ while runFlag == true
                                 case "LAT"                           % CMD_ACT_LAT_*Direction*_*DistanceValue* - Forward and backwards movement, Direction 1= forward, 0 =backward (m/s)
                                     direction = str2double(cmd(4));
                                     distance = str2double(cmd(5));
-                                    [viz,pose,ranges,odometer,lidar,velocity_h,velocity,g,gSwitch]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map,g,gSwitch);
+                                    [viz,pose,ranges,odometer,lidar,velocity_h,velocity,g,gSwitch]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map,g,gSwitch,g1_h,g2_h);
                                 case "ROT"                           % CMD_ACT_ROT_*Direction*_*Angle* - CW and CCW rotation,  Direction 1= CW, 0=CCW, Angle= rotation angle value
                                     direction = str2double(cmd(4));
                                     angle = str2double(cmd(5))*pi/180;
@@ -174,14 +187,14 @@ while runFlag == true
                                         end
                                     end
                                     
-                                case "ID"         % CMD_SEN_ID - Identify the nearby goal within 0.5m, return 1 if near goal 1, return 2 if near goal 2, return 0 if no nearby goal
+                                case "ID"         % CMD_SEN_ID - Identify the nearby goal within 2m, return 1 if near goal 1, return 2 if near goal 2, return 0 if no nearby goal
                                     d1 =  sqrt( (g(1).x - pose(1))^2 +  ( g(1).y - pose(2))^2);
                                     d2 =  sqrt( (g(2).x - pose(1))^2 +  ( g(2).y - pose(2))^2);
-                                    if 0 < d1 && d1 < 0.5
+                                    if 0 < d1 && d1 < 2
                                         serialWrite(arduinoObj,1);
                                         return
                                     end
-                                    if 0 < d2 && d2 < 0.5
+                                    if 0 < d2 && d2 < 2
                                         serialWrite(arduinoObj,2);
                                         return
                                     end
@@ -202,14 +215,14 @@ if ~isempty(data)
     %disp("Return from Arduino")
      Status = DataLogger(data,'TX');
   %  ReturnFromArduino = arduinoObj.readline
-        actual = data
+   %     actual = data
 end
 end
-function [viz,pose,ranges,odometer,lidar,velocity_h,velocity,g,gSwitch]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map,g,gSwitch)
+function [viz,pose,ranges,odometer,lidar,velocity_h,velocity,g,gSwitch]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map,g,gSwitch,g1_h,g2_h)
 try delete(velocity_h);end
 vx=16;
 vy=20.5;
-maxDistance = 0.2; %% Maximum distance to goal required for the robot to be consider achieved goal
+maxDistance = 0.5; %% Maximum distance to goal required for the robot to be consider achieved goal
 switch direction
     case 1
         velocity_h = text(vx,vy,sprintf('Velocity(m/s)=%f',1.5),'FontSize',7);
@@ -232,11 +245,13 @@ switch direction
                         d1 =  sqrt( (g(1).x - pose(1))^2 +  ( g(1).y - pose(2))^2);
                         if d1 <= maxDistance
                             gSwitch = 1;
+                            try delete(g1_h); end
                         end 
                     case 1
                         d2 =  sqrt( (g(2).x - pose(1))^2 +  ( g(2).y - pose(2))^2);
                         if d2 <= maxDistance
                             gSwitch = 2;
+                            try delete(g2_h); end
                         end 
                 end
                 ranges = lidar(pose);
@@ -260,6 +275,7 @@ switch direction
                         d1 =  sqrt( (g(1).x - pose(1))^2 +  ( g(1).y - pose(2))^2);
                         if d1 <= maxDistance
                             gSwitch = 1;
+                            try delete(g1_h); end
                         end 
                     case 1
                         d2 =  sqrt( (g(2).x - pose(1))^2 +  ( g(2).y - pose(2))^2);
@@ -296,6 +312,7 @@ switch direction
                         d1 =  sqrt( (g(1).x - pose(1))^2 +  ( g(1).y - pose(2))^2);
                         if d1 <= maxDistance
                             gSwitch = 1;
+                            try delete(g1_h); end
                         end 
                     case 1
                         d2 =  sqrt( (g(2).x - pose(1))^2 +  ( g(2).y - pose(2))^2);
@@ -325,6 +342,7 @@ switch direction
                         d1 =  sqrt( (g(1).x - pose(1))^2 +  ( g(1).y - pose(2))^2);
                         if d1 <= maxDistance
                             gSwitch = 1;
+                            try delete(g1_h); end
                         end 
                     case 1
                         d2 =  sqrt( (g(2).x - pose(1))^2 +  ( g(2).y - pose(2))^2);
