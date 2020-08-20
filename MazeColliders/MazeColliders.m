@@ -7,24 +7,52 @@ addpath(genpath([path,'\map\']));
 port = serialportlist("available") %% List the available Serial ports
 SerialPort = "COM4"; %% Change to the port connected to the Arduino
 BaudRate = 9600;   %% Communication baud rate
-task = "A3" ;       %% Task A3(box with no goal) or A4(random map with goals)
+task = "A4" ;       %% Task A3(randomized map with two goal) or A4(manually set map with three goals)
 randomGoal = true;  %% Spawn random goals on map ? 
+mapSetA4 = "map\map4.png" %% set the map manually
+randomPose = true;
 %% Do not Modify
 switch task
     case "A3"
-        mapLoad = imread('box.png');
-    case "A4"
-        mapID=randi([1 9],1,1); % Randomize map ID
+        mapID=randi([1 5],1,1); % Randomize map ID
+        %%%%%%%%%%%%%%%%%%%%% Consider add map3 and map4 folder%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         f = dir('map\map*.png');
         mapLoad = imread(f(mapID).name); % Load map from .png pixel drawing (200x200 pixel)
+    case "A4"
+        mapLoad = imread(mapSetA4);
 end
 sensorAngle = 0*pi/180; %% Sensor scan angle in radian
 scanDensity = 1; %% Amount of beam emited
 sensorRange = 5; %% Max range of sensor
-originalPose = [3; 4; 0]; %% Original robot position
+pose = [3; 4; 0]; %% Original robot position for A4
 odometer = 0; %% Distance travelled
 velocity = 0;
 velocity_h=NaN;
+%% Create map
+grayimage = rgb2gray(mapLoad);
+bwimage = grayimage < 0.5;
+map = binaryOccupancyMap(bwimage,1);
+%% GET A FREE POINT
+resolution = 0.5;
+numFree = 0;
+spacing = 0.2; % distance away from the wall which goal and robot spawn
+for x =0 : resolution : 20
+    for  y=0 : resolution : 20
+        if getOccupancy(map,[x y]) == 0 && getOccupancy(map,[x-spacing y]) == 0 && getOccupancy(map,[x-spacing y-spacing]) == 0&& getOccupancy(map,[x-spacing y+spacing]) == 0&& getOccupancy(map,[x y-spacing]) == 0&& getOccupancy(map,[x y+spacing]) == 0&& getOccupancy(map,[x+spacing y]) == 0&& getOccupancy(map,[x+spacing y+spacing]) == 0&& getOccupancy(map,[x+spacing y-spacing]) == 0
+            numFree = numFree+1;
+            freeLoc(numFree).x = x;
+            freeLoc(numFree).y = y;
+        end
+    end
+end
+%% Decide on Pose generation
+if randomPose == true
+        PosSeed = randi([1,numFree],1,1);
+        pose(1) = freeLoc(PosSeed).x;
+        pose(2) = freeLoc(PosSeed).y;
+        pose(3) = randi([0,3141],1,1)/1000;     
+end
+
 
 %% Innitialize Serial Communication
 arduinoObj = serialport(SerialPort,BaudRate);
@@ -36,12 +64,7 @@ arduinoObj.Timeout = 60; % Serial connection not reveive data within 60 second w
 viz = Visualizer2D;
 viz.showTrajectory = false;          %% Show the robot Trajectory
 viz.hasWaypoints = false;
-%% Create map
-grayimage = rgb2gray(mapLoad);
-bwimage = grayimage < 0.5;
-map = binaryOccupancyMap(bwimage,1);
 viz.mapName = 'map';
-pose = [3; 4; 0];
 lidar = LidarSensor;
 lidar.scanAngles = linspace(sensorAngle-pi/180,sensorAngle+pi/180,scanDensity);
 lidar.maxRange = sensorRange;
@@ -50,21 +73,8 @@ attachLidarSensor(viz,lidar);
 ranges = lidar(pose);
 viz(pose,ranges)
 
-%% GET A FREE POINT
+%% Generate random goals
 gSwitch = 0; % to check if robot achieved Goal,0 is default, 1 when the robot reached goal 1 and 2 when robot reach goal 2.
-resolution = 0.5;
-numFree = 0;
-spacing = 0.2; % distance away from the wall which goal spawn
-for x =0 : resolution : 20
-    for  y=0 : resolution : 20
-        if getOccupancy(map,[x y]) == 0 && getOccupancy(map,[x-spacing y]) == 0 && getOccupancy(map,[x-spacing y-spacing]) == 0&& getOccupancy(map,[x-spacing y+spacing]) == 0&& getOccupancy(map,[x y-spacing]) == 0&& getOccupancy(map,[x y+spacing]) == 0&& getOccupancy(map,[x+spacing y]) == 0&& getOccupancy(map,[x+spacing y+spacing]) == 0&& getOccupancy(map,[x+spacing y-spacing]) == 0
-            numFree = numFree+1;
-            freeLoc(numFree).x = x;
-            freeLoc(numFree).y = y;
-        end
-    end
-end
-
 seed = randi([1,numFree],2,1);
 distance = sqrt( (freeLoc(seed(1)).x - freeLoc(seed(2)).x)^2 +  (freeLoc(seed(1)).y - freeLoc(seed(2)).y)^2);
 while  distance < 5 distance && distance > 20
@@ -82,8 +92,10 @@ g1_h = plot(g(1).x,g(1).y,'Color','b','Marker','.','MarkerSize',30); %% <---Goal
 g2_h = plot(g(2).x,g(2).y,'Color','r','Marker','*','MarkerSize',10); %% <---Goal 2 coordinate here
     case false
 end
-
-
+%% Start-end waypoint
+if task == "A4"
+   base =  plot(pose(1),pose(2),'Color','c','Marker','.','MarkerSize',30);
+end
 runFlag= false;
 while runFlag == false
      disp("WAITING FOR START SIGNAL")
@@ -157,7 +169,8 @@ while runFlag == true
                         case "SEN"          % Sensor Command
                             switch cmd(3)
                                 case "IR"                            % CMD_SEN_IR - Function returns readings of the laser sensor
-                                    serialWrite(arduinoObj,ranges);
+                                    noiseLevel = 3;                  % Percentage of noise created
+                                    serialWrite(arduinoObj,ranges + randi([-noiseLevel,noiseLevel],1,1)/100);
                                 case "ROT"                           % CMD_SEN_ROT_*Angle* - This will move the sensor to the specific position 0 is forward, 90 is right, 180 is back, 270 is left
                                     angle = str2double(cmd(4));
                                     while angle >= 360
