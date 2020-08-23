@@ -7,15 +7,15 @@ addpath(genpath([path,'\map\']));
 port = serialportlist("available") %% List the available Serial ports
 SerialPort = "COM4"; %% Change to the port connected to the Arduino
 BaudRate = 9600;   %% Communication baud rate
-task = "A4" ;       %% Task A3(randomized map with two goal) or A4(manually set map with three goals)
+task = "A3" ;       %% Task A3(randomized map with two goal) or A4(manually set map with three goals)
 randomGoal = true;  %% Spawn random goals on map ? 
-mapSetA4 = "map\map4.png" %% set the map manually
+mapSetA4 = "map\map4.png" %% set the map manually,only work when task set to A4
 randomPose = true;
 %% Do not Modify
+numberOfMaps = 5;
 switch task
     case "A3"
-        mapID=randi([1 5],1,1); % Randomize map ID
-        %%%%%%%%%%%%%%%%%%%%% Consider add map3 and map4 folder%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        mapID=randi([1 numberOfMaps],1,1); % Randomize map ID
         f = dir('map\map*.png');
         mapLoad = imread(f(mapID).name); % Load map from .png pixel drawing (200x200 pixel)
     case "A4"
@@ -45,14 +45,13 @@ for x =0 : resolution : 20
         end
     end
 end
-%% Decide on Pose generation
+%% Pose generation
 if randomPose == true
         PosSeed = randi([1,numFree],1,1);
         pose(1) = freeLoc(PosSeed).x;
         pose(2) = freeLoc(PosSeed).y;
         pose(3) = randi([0,3141],1,1)/1000;     
 end
-
 
 %% Innitialize Serial Communication
 arduinoObj = serialport(SerialPort,BaudRate);
@@ -114,7 +113,6 @@ while runFlag == true
     buffer = arduinoObj.readline;
     if ~isempty(buffer)
         Status = DataLogger(buffer,'RX');
-        
         switch buffer
             case "CMD_CLOSE"
                 arduinoObj = [];
@@ -140,8 +138,10 @@ while runFlag == true
                                     distance = str2double(cmd(5));
                                     [viz,pose,ranges,odometer,lidar,velocity_h,velocity,g,gSwitch]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map,g,gSwitch,g1_h,g2_h);
                                 case "ROT"                           % CMD_ACT_ROT_*Direction*_*Angle* - CW and CCW rotation,  Direction 1= CW, 0=CCW, Angle= rotation angle value
+                                    noiseRot = 2;
                                     direction = str2double(cmd(4));
                                     angle = str2double(cmd(5))*pi/180;
+                                    angle = angle + angle*randi([-noiseRot,noiseRot],1,1)/100;
                                     switch direction
                                         case 1
                                             pose = pose - [0; 0; angle];
@@ -164,13 +164,12 @@ while runFlag == true
                                     end
                                     ranges = lidar(pose);
                                     viz(pose,ranges)
-                                    
                             end
                         case "SEN"          % Sensor Command
                             switch cmd(3)
                                 case "IR"                            % CMD_SEN_IR - Function returns readings of the laser sensor
-                                    noiseLevel = 3;                  % Percentage of noise created
-                                    serialWrite(arduinoObj,ranges + randi([-noiseLevel,noiseLevel],1,1)/100);
+                                    noiseSEN = 5;                  % Percentage of noise created
+                                    serialWrite(arduinoObj,ranges + ranges*randi([-noiseSEN,noiseSEN],1,1)/100);
                                 case "ROT"                           % CMD_SEN_ROT_*Angle* - This will move the sensor to the specific position 0 is forward, 90 is right, 180 is back, 270 is left
                                     angle = str2double(cmd(4));
                                     while angle >= 360
@@ -189,9 +188,6 @@ while runFlag == true
                                     serialWrite(arduinoObj,sensorAngle);
                                 case "VEL"              % CMD_SEN_VEL - Return current Velocity of the robot
                                     serialWrite(arduinoObj,velocity);
-                                case "GYRO"             % CMD_SEN_GYRO - Return current orientation of the robot
-                                    Robot_Orientation = pose(3)*180/pi;
-                                    serialWrite(arduinoObj,Robot_Orientation);
                                 case "DIST"             % CMD_SEN_DIST - Return current orientation of the robot
                                     serialWrite(arduinoObj,odometer);
                                 case "PING"             % CMD_SEN_PING - Check if the goal point is nearby,return the distance to the goal if it within 5m range, return 0 if nothing in nearby
