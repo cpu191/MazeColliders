@@ -2,15 +2,20 @@ clear all
 path = pwd;
 addpath(genpath([path,'\Toolboxes\']));
 addpath(genpath([path,'\map\']));
- 
 %run startMobileRoboticsSimulationToolbox.m %% Comment out after first run to stop jumping to GettingStarted.mlx
 port = serialportlist("available") %% List the available Serial ports
 SerialPort = "COM4"; %% Change to the port connected to the Arduino
 BaudRate = 9600;   %% Communication baud rate
-task = "A3" ;       %% Task A3(randomized map with two goal) or A4(manually set map with three goals)
+task = "A4" ;       %% Task A3(randomized map with two goal) or A4(manually set map with three goals)
 randomGoal = true;  %% Spawn random goals on map ? 
 mapSetA4 = "map\map4.png" %% set the map manually,only work when task set to A4
 randomPose = true;
+
+%%Assigning goal if randomGoal == false
+g1 = [13 6];    % GOAL [x y]
+g2 = [15 4];    % GOAL [x y]
+%%Assigning Pose if randomPose == false
+Pose = [9 7 15];    %Pose [x y theta]
 %% Do not Modify
 numberOfMaps = 5;
 switch task
@@ -47,11 +52,16 @@ for x =0 : resolution : 20
     end
 end
 %% Pose generation
-if randomPose == true
+switch randomPose 
+    case true
         PosSeed = randi([1,numFree],1,1);
         pose(1) = freeLoc(PosSeed).x;
         pose(2) = freeLoc(PosSeed).y;
-        pose(3) = randi([0,3141],1,1)/1000;     
+        pose(3) = randi([0,3141],1,1)/1000;   
+    case false
+        pose(1) = Pose(1);
+        pose(2) = Pose(2);
+        pose(3) = Pose(3);
 end
 
 %% Innitialize Serial Communication
@@ -81,16 +91,22 @@ while  distance < 5 distance && distance > 20
     seed = randi([1,numFree],2,1);
     distance = sqrt( (freeLoc(seed(1)).x - freeLoc(seed(2)).x)^2 +  (freeLoc(seed(1)).y - freeLoc(seed(2)).y)^2);
 end
-g(1) = freeLoc(seed(1));
-g(2)= freeLoc(seed(2));
 hold on
 g1_h= NaN;
 g2_h=NaN;
 switch randomGoal
     case true
-g1_h = plot(g(1).x,g(1).y,'Color','b','Marker','.','MarkerSize',30); %% <---Goal 1 coordinate here
-g2_h = plot(g(2).x,g(2).y,'Color','r','Marker','*','MarkerSize',10); %% <---Goal 2 coordinate here
+        g(1) = freeLoc(seed(1));
+        g(2)= freeLoc(seed(2));
+        g1_h = plot(g(1).x,g(1).y,'Color','b','Marker','.','MarkerSize',30); %% <---Goal 1 coordinate here
+        g2_h = plot(g(2).x,g(2).y,'Color','r','Marker','*','MarkerSize',10); %% <---Goal 2 coordinate here
     case false
+        g(1).x = g1(1);
+        g(1).y = g1(2);
+        g(2).x = g2(1);
+        g(2).y = g2(2);
+        g1_h = plot(g(1).x,g(1).y,'Color','b','Marker','.','MarkerSize',30); %% <---Goal 1 coordinate here
+        g2_h = plot(g(2).x,g(2).y,'Color','r','Marker','*','MarkerSize',10); %% <---Goal 2 coordinate here
 end
 %% Start-end waypoint
 if task == "A4"
@@ -113,7 +129,7 @@ tic
 while runFlag == true
     buffer = arduinoObj.readline;
     if ~isempty(buffer)
-        Status = DataLogger(buffer,'RX');
+        Status = DataLogger(buffer,'RX',pose);
         switch buffer
             case "CMD_CLOSE"
                 arduinoObj = [];
@@ -233,7 +249,7 @@ if ~isempty(data)
     str = num2str(data);
     writeline(arduinoObj,str);
     %disp("Return from Arduino")
-     Status = DataLogger(data,'TX');
+     Status = DataLogger(data,'TX',null);
   %  ReturnFromArduino = arduinoObj.readline
    %     actual = data
 end
@@ -409,18 +425,21 @@ switch direction
 end
 odometer = odometer + sqrt(distance*cos(pose(3))*distance*cos(pose(3))+distance*sin(pose(3))*distance*sin(pose(3)));
 end
-function [Status]=DataLogger(String,SendString)
+function [Status]=DataLogger(String,SendString,pose)
    persistent Logger;
    if isempty(Logger)
        Logger={'TimeStamp','Recieved','Transmitted'};
    end
+   poseStr = (strcat('x:  ',num2str(pose(1)),'  y:  ',num2str(pose(2)),'  theta:  ',num2str(pose(3))));
    DataVector{1,1}=datestr(datetime);
    if strcmp(SendString,'RX')
        DataVector{1,2}=String;
        DataVector{1,3}='';
+       DataVector{1,3}=poseStr;
    elseif strcmp(SendString,'TX')
        DataVector{1,2}='';
        DataVector{1,3}=String;
+       DataVector{1,3}=poseStr ;
    end
    Logger=vertcat(Logger,DataVector);
    assignin('base','DataLog',Logger);
