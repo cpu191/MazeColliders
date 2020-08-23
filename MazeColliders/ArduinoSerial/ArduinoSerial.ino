@@ -64,12 +64,12 @@ void loop() {
   {
     case btnRIGHT:
       {
-        PrintMessage("CMD_ACT_ROT_1_10");
+        PrintMessage("CMD_ACT_ROT_1_370");
         break;
       }
     case btnLEFT:
       {
-        PrintMessage("CMD_ACT_ROT_0_10");
+        PrintMessage("CMD_ACT_ROT_0_370");
         break;
       }
     case btnUP:
@@ -79,7 +79,7 @@ void loop() {
       }
     case btnDOWN:
       {
-        PrintMessage("CMD_SEN_PING");
+        PrintMessage("CMD_ACT_LAT_0_1");
         
         String incomingByte = Serial.readString();
 //        Serial.println(incomingByte);

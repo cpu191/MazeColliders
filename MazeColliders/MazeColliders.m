@@ -28,6 +28,7 @@ pose = [3; 4; 0]; %% Original robot position for A4
 odometer = 0; %% Distance travelled
 velocity = 0;
 velocity_h=NaN;
+collision = 0;
 %% Create map
 grayimage = rgb2gray(mapLoad);
 bwimage = grayimage < 0.5;
@@ -136,7 +137,7 @@ while runFlag == true
                                 case "LAT"                           % CMD_ACT_LAT_*Direction*_*DistanceValue* - Forward and backwards movement, Direction 1= forward, 0 =backward (m/s)
                                     direction = str2double(cmd(4));
                                     distance = str2double(cmd(5));
-                                    [viz,pose,ranges,odometer,lidar,velocity_h,velocity,g,gSwitch]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map,g,gSwitch,g1_h,g2_h);
+                                    [viz,pose,ranges,odometer,lidar,velocity_h,velocity,g,gSwitch,collision]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map,g,gSwitch,g1_h,g2_h,collision);
                                 case "ROT"                           % CMD_ACT_ROT_*Direction*_*Angle* - CW and CCW rotation,  Direction 1= CW, 0=CCW, Angle= rotation angle value
                                     noiseRot = 2;
                                     direction = str2double(cmd(4));
@@ -218,6 +219,8 @@ while runFlag == true
                                     serialWrite(arduinoObj,0);
                                 case "GOAL"       % CMD_SEN_GOAL - Check the goal Switch, 0 is default, 1 when the robot reached goal 1 and 2 when robot reach goal 2.
                                     serialWrite(arduinoObj,gSwitch);
+                                case "COL"        % CMD_SEN_COL - Check the number of time robot collide with the wall
+                                    serialWrite(arduinoObj,collision); 
                             end
                             
                     end
@@ -235,10 +238,13 @@ if ~isempty(data)
    %     actual = data
 end
 end
-function [viz,pose,ranges,odometer,lidar,velocity_h,velocity,g,gSwitch]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map,g,gSwitch,g1_h,g2_h)
+function [viz,pose,ranges,odometer,lidar,velocity_h,velocity,g,gSwitch,collision]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map,g,gSwitch,g1_h,g2_h,collision)
 try delete(velocity_h);end
+persistent stuck;
+
 vx=16;
 vy=20.5;
+pauseDur = 0.01;
 maxDistance = 0.5; %% Maximum distance to goal required for the robot to be consider achieved goal
 switch direction
     case 1
@@ -249,12 +255,17 @@ switch direction
                 nextPose = pose + [distance/25*cos(pose(3));distance/25*sin(pose(3));0];
                 %% Check for wall
                 if getOccupancy(map,[nextPose(1) nextPose(2)]) == 1
+                    if stuck == 0
+                        collision = collision +1;
+                        stuck = 1;
+                    end
                     %disp('Wall Stop')
                     ranges = lidar(pose);
                     viz(pose,ranges)
                     return
                 else
                     pose = nextPose;
+                    stuck = 0;
                 end
                 %% Check for goal
                 switch gSwitch
@@ -273,18 +284,23 @@ switch direction
                 end
                 ranges = lidar(pose);
                 viz(pose,ranges)
-                pause(0.01)
+                pause(pauseDur)
             end
         else
             for i = 0:distance/50: distance
                 nextPose = pose + [distance/50*cos(pose(3));distance/50*sin(pose(3));0];
                 if getOccupancy(map,[nextPose(1) nextPose(2)]) == 1
+                    if stuck == 0
+                        collision = collision +1;
+                        stuck = 1;
+                    end
                     %disp('Wall Stop')
                     ranges = lidar(pose);
                     viz(pose,ranges)
                     return
                 else
                     pose = nextPose;
+                    stuck = 0;
                 end
                 %% Check for goal
                 switch gSwitch
@@ -303,7 +319,7 @@ switch direction
                 ranges = lidar(pose);
                 velocity = 1.5;
                 viz(pose,ranges)
-                pause(0.01)
+                pause(pauseDur)
             end
         end
         delete(velocity_h);
@@ -316,12 +332,17 @@ switch direction
             for i = 0:distance/25: distance
                 nextPose = pose - [distance/25*cos(pose(3));distance/25*sin(pose(3));0];
                 if getOccupancy(map,[nextPose(1) nextPose(2)]) == 1
+                    if stuck == 0
+                        collision = collision +1;
+                        stuck = 1;
+                    end
                     %disp('Wall Stop')
                     ranges = lidar(pose);
                     viz(pose,ranges)
                     return
                 else
                     pose = nextPose;
+                    stuck = 0;
                 end
                                 %% Check for goal
                 switch gSwitch
@@ -340,18 +361,23 @@ switch direction
                 ranges = lidar(pose);
                 velocity = -1.5;
                 viz(pose,ranges)
-                pause(0.02)
+                pause(pauseDur)
             end
         else
             for i = 0:distance/50: distance
                 nextPose = pose - [distance/50*cos(pose(3));distance/50*sin(pose(3));0];
                 if getOccupancy(map,[nextPose(1) nextPose(2)]) == 1
+                    if stuck == 0
+                        collision = collision +1;
+                        stuck = 1;
+                    end
                     %disp('Wall Stop')
                     ranges = lidar(pose);
                     viz(pose,ranges)
                     return
                 else
                     pose = nextPose;
+                    stuck = 0;
                 end
                                 %% Check for goal
                 switch gSwitch
@@ -372,7 +398,7 @@ switch direction
                 viz(pose,ranges)
                 velocity_h = text(vx,vy,sprintf('Velocity=%f',velocity,'m/s'),'FontSize',7);
                 
-                pause(0.01)
+                pause(pauseDur)
             end
         end
         delete(velocity_h);
