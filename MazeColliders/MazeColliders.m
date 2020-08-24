@@ -1,4 +1,5 @@
 clear all
+clf
 path = pwd;
 addpath(genpath([path,'\Toolboxes\']));
 addpath(genpath([path,'\map\']));
@@ -6,10 +7,11 @@ addpath(genpath([path,'\map\']));
 port = serialportlist("available") %% List the available Serial ports
 SerialPort = "COM4"; %% Change to the port connected to the Arduino
 BaudRate = 9600;   %% Communication baud rate
-task = "A4" ;       %% Task A3(randomized map with two goal) or A4(manually set map with three goals)
+task = "A3" ;       %% Task A3(randomized map with two goal) or A4(manually set map with three goals)
 randomGoal = true;  %% Spawn random goals on map ? 
-mapSetA4 = "map\map4.png" %% set the map manually,only work when task set to A4
-randomPose = true;
+mapSet = "map\map3_4.png"; %% set the map manually
+randomPose = true;  %% Random beginning pose of robot
+randomMap = true;   %% Randomize map for A4
 
 %%Assigning goal if randomGoal == false
 g1 = [13 6];    % GOAL [x y]
@@ -17,14 +19,26 @@ g2 = [15 4];    % GOAL [x y]
 %%Assigning Pose if randomPose == false
 Pose = [9 7 15];    %Pose [x y theta]
 %% Do not Modify
-numberOfMaps = 5;
+
 switch task
     case "A3"
-        mapID=randi([1 numberOfMaps],1,1); % Randomize map ID
-        f = dir('map\map*.png');
-        mapLoad = imread(f(mapID).name); % Load map from .png pixel drawing (200x200 pixel)
+        if randomMap == false
+            mapLoad = imread(mapSet);
+        else
+            numberOfMaps = 5;
+            mapID=randi([1 numberOfMaps],1,1); % Randomize map ID
+            f = dir('map\map3_*.png');
+            mapLoad = imread(f(mapID).name); % Load map from .png pixel drawing (200x200 pixel
+        end
     case "A4"
-        mapLoad = imread(mapSetA4);
+        if randomMap == false
+            mapLoad = imread(mapSet);
+        else
+            numberOfMaps = 9;
+            mapID=randi([1 numberOfMaps],1,1); % Randomize map ID
+            f = dir('map\map4_*.png');
+            mapLoad = imread(f(mapID).name); % Load map from .png pixel drawing (200x200 pixel
+        end
 end
 sensorAngle = 0*pi/180; %% Sensor scan angle in radian
 scanDensity = 1; %% Amount of beam emited
@@ -51,13 +65,41 @@ for x =0 : resolution : 20
         end
     end
 end
+%% Generate random goals
+gSwitch = 0; % to check if robot achieved Goal,0 is default, 1 when the robot reached goal 1 and 2 when robot reach goal 2.
+seed = randi([1,numFree],2,1);
+distance = sqrt( (freeLoc(seed(1)).x - freeLoc(seed(2)).x)^2 +  (freeLoc(seed(1)).y - freeLoc(seed(2)).y)^2);
+while  distance < 5 distance || distance > 20
+    seed = randi([1,numFree],2,1);
+    distance = sqrt( (freeLoc(seed(1)).x - freeLoc(seed(2)).x)^2 +  (freeLoc(seed(1)).y - freeLoc(seed(2)).y)^2);
+end
+g1_h= NaN;
+g2_h=NaN;
+switch randomGoal
+    case true
+        g(1) = freeLoc(seed(1));
+        g(2)= freeLoc(seed(2));
+    case false
+        g(1).x = g1(1);
+        g(1).y = g1(2);
+        g(2).x = g2(1);
+        g(2).y = g2(2);
+end
+
 %% Pose generation
 switch randomPose 
     case true
-        PosSeed = randi([1,numFree],1,1);
+        PosSeed = randi([1,numFree],1,1)
+        P1distance = sqrt((freeLoc(PosSeed).x-g(1).x)^2 + (freeLoc(PosSeed).y-g(1).y)^2);
+        P2distance = sqrt((freeLoc(PosSeed).x-g(2).x)^2 + (freeLoc(PosSeed).y-g(2).y)^2);
+        while (P1distance < 5 || P1distance > 20) || (P2distance < 5 || P2distance > 20);
+            PosSeed = randi([1,numFree],1,1);
+            P1distance = sqrt((freeLoc(PosSeed).x-g(1).x)^2 + (freeLoc(PosSeed).y-g(1).y)^2);
+            P2distance = sqrt((freeLoc(PosSeed).x-g(2).x)^2 + (freeLoc(PosSeed).y-g(2).y)^2);
+        end
         pose(1) = freeLoc(PosSeed).x;
         pose(2) = freeLoc(PosSeed).y;
-        pose(3) = randi([0,3141],1,1)/1000;   
+        pose(3) = randi([0,3141],1,1)/1000;
     case false
         pose(1) = Pose(1);
         pose(2) = Pose(2);
@@ -81,37 +123,19 @@ lidar.maxRange = sensorRange;
 release(viz);
 attachLidarSensor(viz,lidar);
 ranges = lidar(pose);
-viz(pose,ranges)
 
-%% Generate random goals
-gSwitch = 0; % to check if robot achieved Goal,0 is default, 1 when the robot reached goal 1 and 2 when robot reach goal 2.
-seed = randi([1,numFree],2,1);
-distance = sqrt( (freeLoc(seed(1)).x - freeLoc(seed(2)).x)^2 +  (freeLoc(seed(1)).y - freeLoc(seed(2)).y)^2);
-while  distance < 5 distance && distance > 20
-    seed = randi([1,numFree],2,1);
-    distance = sqrt( (freeLoc(seed(1)).x - freeLoc(seed(2)).x)^2 +  (freeLoc(seed(1)).y - freeLoc(seed(2)).y)^2);
-end
-hold on
-g1_h= NaN;
-g2_h=NaN;
-switch randomGoal
-    case true
-        g(1) = freeLoc(seed(1));
-        g(2)= freeLoc(seed(2));
-        g1_h = plot(g(1).x,g(1).y,'Color','b','Marker','.','MarkerSize',30); %% <---Goal 1 coordinate here
-        g2_h = plot(g(2).x,g(2).y,'Color','r','Marker','*','MarkerSize',10); %% <---Goal 2 coordinate here
-    case false
-        g(1).x = g1(1);
-        g(1).y = g1(2);
-        g(2).x = g2(1);
-        g(2).y = g2(2);
-        g1_h = plot(g(1).x,g(1).y,'Color','b','Marker','.','MarkerSize',30); %% <---Goal 1 coordinate here
-        g2_h = plot(g(2).x,g(2).y,'Color','r','Marker','*','MarkerSize',10); %% <---Goal 2 coordinate here
-end
-%% Start-end waypoint
+
+viz(pose,ranges)
+    hold on
+%% Plotting waypoint
 if task == "A4"
-   base =  plot(pose(1),pose(2),'Color','c','Marker','.','MarkerSize',30);
+    base =  plot(pose(1),pose(2),'Color','c','Marker','.','MarkerSize',30);
+
 end
+g1_h = plot(g(1).x,g(1).y,'Color','b','Marker','.','MarkerSize',30); %% <---Goal 1 coordinate here
+hold on
+g2_h = plot(g(2).x,g(2).y,'Color','r','Marker','*','MarkerSize',10); %% <---Goal 2 coordinate here
+
 runFlag= false;
 while runFlag == false
      disp("WAITING FOR START SIGNAL")
