@@ -1,5 +1,4 @@
 clear all
-clf
 path = pwd;
 addpath(genpath([path,'\Toolboxes\']));
 addpath(genpath([path,'\map\']));
@@ -7,7 +6,7 @@ addpath(genpath([path,'\map\']));
 port = serialportlist("available") %% List the available Serial ports
 SerialPort = "COM4"; %% Change to the port connected to the Arduino
 BaudRate = 9600;   %% Communication baud rate
-task = "A3" ;       %% Task A3(randomized map with two goal) or A4(manually set map with three goals)
+task = "A4" ;       %% Task A3(randomized map with two goal) or A4(manually set map with three goals)
 randomGoal = true;  %% Spawn random goals on map ? 
 mapSet = "map\map3_4.png"; %% set the map manually
 randomPose = true;  %% Random beginning pose of robot
@@ -89,7 +88,7 @@ end
 %% Pose generation
 switch randomPose 
     case true
-        PosSeed = randi([1,numFree],1,1)
+        PosSeed = randi([1,numFree],1,1);
         P1distance = sqrt((freeLoc(PosSeed).x-g(1).x)^2 + (freeLoc(PosSeed).y-g(1).y)^2);
         P2distance = sqrt((freeLoc(PosSeed).x-g(2).x)^2 + (freeLoc(PosSeed).y-g(2).y)^2);
         while (P1distance < 5 || P1distance > 20) || (P2distance < 5 || P2distance > 20);
