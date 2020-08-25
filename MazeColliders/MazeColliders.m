@@ -8,7 +8,7 @@ SerialPort = "COM4"; %% Change to the port connected to the Arduino
 BaudRate = 9600;   %% Communication baud rate
 task = "A4" ;       %% Task A3(randomized map with two goal) or A4(manually set map with three goals)
 randomGoal = true;  %% Spawn random goals on map ? 
-mapSet = "map\map3_4.png"; %% set the map manually
+mapSet = "map\box.png"; %% set the map manually
 randomPose = true;  %% Random beginning pose of robot
 randomMap = true;   %% Randomize map for A4
 
