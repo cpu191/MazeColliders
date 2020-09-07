@@ -4,13 +4,13 @@ addpath(genpath([path,'\Toolboxes\']));
 addpath(genpath([path,'\map\']));
 %run startMobileRoboticsSimulationToolbox.m %% Comment out after first run to stop jumping to GettingStarted.mlx
 port = serialportlist("available") %% List the available Serial ports
-SerialPort = "COM4"; %% Change to the port connected to the Arduino
+SerialPort = "COM6"; %% Change to the port connected to the Arduino
 BaudRate = 9600;   %% Communication baud rate
-task = "A4" ;       %% Task A3(randomized map with two goal) or A4(manually set map with three goals)
-randomGoal = true;  %% Spawn random goals on map ? 
+task = "A3" ;       %% Task A3(randomized map with two goal) or A4(manually set map with three goals)
+randomGoal = false;  %% Spawn random goals on map ? 
 mapSet = "map\box.png"; %% set the map manually
-randomPose = true;  %% Random beginning pose of robot
-randomMap = true;   %% Randomize map for A4
+randomPose = false;  %% Random beginning pose of robot
+randomMap = false;   %% Randomize map for A4
 
 %%Assigning goal if randomGoal == false
 g1 = [13 6];    % GOAL [x y]
@@ -272,7 +272,7 @@ if ~isempty(data)
     str = num2str(data);
     writeline(arduinoObj,str);
     %disp("Return from Arduino")
-     Status = DataLogger(data,'TX',null);
+     Status = DataLogger(data,'TX',[]);
   %  ReturnFromArduino = arduinoObj.readline
    %     actual = data
 end
@@ -453,7 +453,11 @@ function [Status]=DataLogger(String,SendString,pose)
    if isempty(Logger)
        Logger={'TimeStamp','Recieved','Transmitted'};
    end
-   poseStr = (strcat('x:  ',num2str(pose(1)),'  y:  ',num2str(pose(2)),'  theta:  ',num2str(pose(3))));
+   if ~isempty(pose)
+        poseStr = (strcat('x:  ',num2str(pose(1)),'  y:  ',num2str(pose(2)),'  theta:  ',num2str(pose(3))));
+   else
+        poseStr='';
+   end
    DataVector{1,1}=datestr(datetime);
    if strcmp(SendString,'RX')
        DataVector{1,2}=String;
