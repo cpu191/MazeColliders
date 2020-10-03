@@ -4,7 +4,7 @@ addpath(genpath([path,'\Toolboxes\']));
 addpath(genpath([path,'\map\']));
 %run startMobileRoboticsSimulationToolbox.m %% Comment out after first run to stop jumping to GettingStarted.mlx
 port = serialportlist("available") %% List the available Serial ports
-SerialPort = "COM6"; %% Change to the port connected to the Arduino
+SerialPort = "COM4"; %% Change to the port connected to the Arduino
 BaudRate = 9600;   %% Communication baud rate
 task = "A3" ;       %% Task A3(randomized map with two goal) or A4(manually set map with three goals)
 randomGoal = false;  %% Spawn random goals on map ? 
@@ -16,7 +16,7 @@ randomMap = false;   %% Randomize map for A4
 g1 = [13 6];    % GOAL [x y]
 g2 = [15 4];    % GOAL [x y]
 %%Assigning Pose if randomPose == false
-Pose = [9 7 15];    %Pose [x y theta]
+Pose = [18 18 1*pi];    %Pose [x y theta]
 %% Do not Modify
 
 switch task
@@ -224,6 +224,14 @@ while runFlag == true
                                     attachLidarSensor(viz,lidar);
                                     ranges = lidar(pose);
                                     viz(pose,ranges);
+                                    hold on
+                                    if gSwitch==0
+                                        g1_h = plot(g(1).x,g(1).y,'Color','b','Marker','.','MarkerSize',30); %% <---Goal 1 coordinate here
+                                        g2_h = plot(g(2).x,g(2).y,'Color','r','Marker','*','MarkerSize',10); %% <---Goal 2 coordinate here
+                                    elseif gSwitch==1
+                                        g2_h = plot(g(2).x,g(2).y,'Color','r','Marker','*','MarkerSize',10); %% <---Goal 2 coordinate here
+                                    end
+                                    hold off
                                 case "CHECK"            % CMD_SEN_CHECK - This will return the current rotation on the sensor rotation 0-360
                                     serialWrite(arduinoObj,sensorAngle);
                                 case "VEL"              % CMD_SEN_VEL - Return current Velocity of the robot
@@ -461,11 +469,9 @@ function [Status]=DataLogger(String,SendString,pose)
    DataVector{1,1}=datestr(datetime);
    if strcmp(SendString,'RX')
        DataVector{1,2}=String;
-       DataVector{1,3}='';
        DataVector{1,3}=poseStr;
    elseif strcmp(SendString,'TX')
-       DataVector{1,2}='';
-       DataVector{1,3}=String;
+       DataVector{1,2}=String;
        DataVector{1,3}=poseStr ;
    end
    Logger=vertcat(Logger,DataVector);
