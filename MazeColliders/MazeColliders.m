@@ -16,7 +16,7 @@ randomMap = false;   %% Randomize map for A4
 g1 = [13 6];    % GOAL [x y]
 g2 = [15 4];    % GOAL [x y]
 %%Assigning Pose if randomPose == false
-Pose = [18 18 1*pi];    %Pose [x y theta]
+Pose = [6 4 0*pi];    %Pose [x y theta]
 %% Do not Modify
 
 switch task
@@ -151,6 +151,7 @@ tic
 %% Loop
 while runFlag == true
     buffer = arduinoObj.readline;
+    %disp(buffer);
     if ~isempty(buffer)
         Status = DataLogger(buffer,'RX',pose);
         switch buffer
@@ -255,15 +256,13 @@ while runFlag == true
                                 case "ID"         % CMD_SEN_ID - Identify the nearby goal within 2m, return 1 if near goal 1, return 2 if near goal 2, return 0 if no nearby goal
                                     d1 =  sqrt( (g(1).x - pose(1))^2 +  ( g(1).y - pose(2))^2);
                                     d2 =  sqrt( (g(2).x - pose(1))^2 +  ( g(2).y - pose(2))^2);
-                                    if 0 < d1 && d1 < 2
+                                    if 0 < d1 && d1 < 2 && d1<d2
                                         serialWrite(arduinoObj,1);
-                                        return
+                                    elseif 0 < d2 && d2 < 2 && d2<d1
+                                        serialWrite(arduinoObj,2);                                       
+                                    else
+                                        serialWrite(arduinoObj,0);
                                     end
-                                    if 0 < d2 && d2 < 2
-                                        serialWrite(arduinoObj,2);
-                                        return
-                                    end
-                                    serialWrite(arduinoObj,0);
                                 case "GOAL"       % CMD_SEN_GOAL - Check the goal Switch, 0 is default, 1 when the robot reached goal 1 and 2 when robot reach goal 2.
                                     serialWrite(arduinoObj,gSwitch);
                                 case "COL"        % CMD_SEN_COL - Check the number of time robot collide with the wall
@@ -278,11 +277,12 @@ end
 function serialWrite(arduinoObj,data)
 if ~isempty(data)
     str = num2str(data);
+    %disp(str);
     writeline(arduinoObj,str);
     %disp("Return from Arduino")
      Status = DataLogger(data,'TX',[]);
-  %  ReturnFromArduino = arduinoObj.readline
-   %     actual = data
+    %ReturnFromArduino = arduinoObj.readline
+        %actual = data
 end
 end
 function [viz,pose,ranges,odometer,lidar,velocity_h,velocity,g,gSwitch,collision]= moveStep(viz,pose,distance,direction,odometer,lidar,velocity_h,velocity,map,g,gSwitch,g1_h,g2_h,collision)
