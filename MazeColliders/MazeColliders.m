@@ -91,7 +91,7 @@ switch randomPose
         PosSeed = randi([1,numFree],1,1);
         P1distance = sqrt((freeLoc(PosSeed).x-g(1).x)^2 + (freeLoc(PosSeed).y-g(1).y)^2);
         P2distance = sqrt((freeLoc(PosSeed).x-g(2).x)^2 + (freeLoc(PosSeed).y-g(2).y)^2);
-        while (P1distance < 5 || P1distance > 20) || (P2distance < 5 || P2distance > 20);
+        while (P1distance < 5 || P1distance > 20) || (P2distance < 5 || P2distance > 20)
             PosSeed = randi([1,numFree],1,1);
             P1distance = sqrt((freeLoc(PosSeed).x-g(1).x)^2 + (freeLoc(PosSeed).y-g(1).y)^2);
             P2distance = sqrt((freeLoc(PosSeed).x-g(2).x)^2 + (freeLoc(PosSeed).y-g(2).y)^2);
@@ -151,7 +151,9 @@ tic
 %% Loop
 while runFlag == true
     buffer = arduinoObj.readline;
-    %disp(buffer);
+    
+    %disp(buffer); %Uncomment this to view the messages being recieved. 
+ 
     if ~isempty(buffer)
         Status = DataLogger(buffer,'RX',pose);
         switch buffer
@@ -166,7 +168,6 @@ while runFlag == true
                 disp("Travelled Distance(metre):")
                 disp(odometer)
                 disp("-------SESSION END-------")
-                clear
                 break
             otherwise
                 cmd = strsplit(buffer,'_'); % Splitting command into sectors
@@ -277,7 +278,7 @@ end
 function serialWrite(arduinoObj,data)
 if ~isempty(data)
     str = num2str(data);
-    %disp(str);
+    %disp(str); %Uncomment this to view the messages that are transmitted
     writeline(arduinoObj,str);
     %disp("Return from Arduino")
      Status = DataLogger(data,'TX',[]);
