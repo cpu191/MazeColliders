@@ -244,10 +244,10 @@ while runFlag == true
                                     d1 =  sqrt( (g(1).x - pose(1))^2 +  ( g(1).y - pose(2))^2);
                                     d2 =  sqrt( (g(2).x - pose(1))^2 +  ( g(2).y - pose(2))^2);
                                     
-                                    if 0 < d1 && d1 <= 5
+                                    if 0 < d1 && d1 <= 5 && gSwitch ~= 1
                                         serialWrite(arduinoObj,d1);
                                     else   
-                                        if 0 < d2 && d2 <= 5
+                                        if 0 < d2 && d2 <= 5 && gSwitch ~= 2
                                             serialWrite(arduinoObj,d2);
                                         else
                                             serialWrite(arduinoObj,0);
